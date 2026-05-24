@@ -1,0 +1,13 @@
+// Ant Design Input — only style overrides not covered by component tokens.
+// Height & border-radius are configured in src/assets/component-tokens/input.js
+
+// <Input.Search /> — square off the right side where the search button joins
+.ant-input-search {
+  .ant-input-affix-wrapper:not(:last-child) {
+    border-radius: 10px 0 0 10px;
+  }
+
+  .ant-input-search-button {
+    border-radius: 0 8px 8px 0 !important;
+  }
+}

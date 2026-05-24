@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand colors */
+  --color-primary: #ba558f;
+  --color-primary-dark: #8f3f6d;
+  --color-primary-light: #e9bfd7;
+  --color-on-primary: #ffffff;
+
+  --color-secondary: #4a5b7a;
+  --color-accent: #f2a7c6;
+
+  /* Surface & background */
+  --color-background: #f7f7fb;
+  --color-surface: #ffffff;
+  --color-surface-variant: #f0e6ec;
+
+  /* Text */
+  --color-text: #1c1b1f;
+  --color-text-muted: #6b6b75;
+
+  /* Border */
+  --color-border: #e3e1e6;
+
+  /* Semantic */
+  --color-success: #16a34a;
+  --color-info: #2563eb;
+  --color-warning: #ea9217;
+  --color-error: #dc2626;
+
+  /* Typography */
+  --font-family-sans: 'Poppins', sans-serif;
+
+  --font-size-xs: 11px;
+  --font-size-sm: 13px;
+  --font-size-md: 15px;
+  --font-size-lg: 17px;
+  --font-size-xl: 20px;
+  --font-size-xxl: 24px;
+  --font-size-display: 30px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Poppins', sans-serif;
+  background-color: #f7f7fb;
+  color: #1c1b1f;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100svh;
+}

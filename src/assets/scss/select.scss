@@ -1,0 +1,20 @@
+.ant-select-dropdown {
+    padding: 0;
+    border-radius: 3px;
+
+    .rc-virtual-list-holder-inner {
+        padding: 0;
+    }
+
+    .ant-select-item {
+        border-radius: 0;
+        margin: 0;
+    }
+
+    .ant-select-item-option-active:not(.ant-select-item-option-disabled),
+    .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+        background-color: #f0e6ec !important;
+        color: #ba558f !important;
+        font-weight: 500;
+    }
+}

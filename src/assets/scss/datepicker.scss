@@ -1,0 +1,48 @@
+// DatePicker: hide popup footer (Today / Now) by default across the app.
+// To opt-in for a specific picker, pass popupClassName="with-footer".
+.ant-picker-dropdown {
+    border-radius: 3px;
+
+    .ant-picker-panel-container,
+    .ant-picker-panel-layout,
+    .ant-picker-panel {
+        border-radius: 3px;
+    }
+
+    .ant-picker-footer {
+        display: none;
+    }
+
+    &.with-footer .ant-picker-footer {
+        display: block;
+    }
+
+    // Date cells: circular
+    .ant-picker-date-panel,
+    .ant-picker-week-panel {
+        .ant-picker-cell .ant-picker-cell-inner {
+            border-radius: 100% !important;
+        }
+        .ant-picker-cell-today .ant-picker-cell-inner::before {
+            border-radius: 100% !important;
+        }
+    }
+
+    // Month / Year / Quarter / Decade cells: pill-shaped
+    .ant-picker-month-panel,
+    .ant-picker-year-panel,
+    .ant-picker-quarter-panel,
+    .ant-picker-decade-panel {
+        .ant-picker-cell .ant-picker-cell-inner {
+            border-radius: 9999px !important;
+        }
+        .ant-picker-cell-today .ant-picker-cell-inner::before {
+            border-radius: 9999px !important;
+        }
+    }
+
+    .ant-picker-content thead th {
+        font-weight: 500;
+        color: #4a5b7a !important;
+    }
+}

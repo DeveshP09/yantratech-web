@@ -1,0 +1,5 @@
+// AntD hard-codes `border-color: transparent` on .ant-card-hoverable:hover
+// (see antd/es/card/style/index.js). There's no token for it, so override here.
+.ant-card-hoverable:hover {
+    border-color: #e3e1e6 !important;
+}
