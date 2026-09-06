@@ -4,6 +4,6 @@
 // In production, use the configured backend URL.
 export const API_BASE_URL = import.meta.env.DEV
   ? ''
-  : (import.meta.env.YT_API_BASE_URL || 'https://yantratech-backend.onrender.com')
+  : (import.meta.env.YT_API_BASE_URL || 'https://api.yantravidyainfotech.com')
 
 export const API_TIMEOUT = Number(import.meta.env.YT_API_TIMEOUT) || 30000

@@ -6,6 +6,7 @@ import {
   PhoneOutlined,
   IdcardOutlined,
   BankOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import useAuthStore from '@/store/useAuthStore'
@@ -100,9 +101,21 @@ const ProfileDrawer = ({ open, onClose }) => {
 
         <InfoRow
           icon={<BankOutlined style={{ fontSize: 14, color: '#ba558f' }} />}
-          label="Institute ID"
-          value={user?.institute_id ? `#${user.institute_id}` : null}
+          label="Institute"
+          value={user?.institute_name || (user?.institute_id ? `#${user.institute_id}` : null)}
         />
+
+        {/* Students only — null for teachers and the operator */}
+        {(user?.batch_name || user?.batch_id) && (
+          <>
+            <Divider style={{ margin: 0 }} />
+            <InfoRow
+              icon={<TeamOutlined style={{ fontSize: 14, color: '#ba558f' }} />}
+              label="Batch"
+              value={user?.batch_name || `#${user.batch_id}`}
+            />
+          </>
+        )}
       </div>
 
       {/* Logout pinned to bottom */}

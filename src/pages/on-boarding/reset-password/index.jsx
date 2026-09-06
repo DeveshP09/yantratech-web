@@ -1,12 +1,20 @@
 import { useMemo } from 'react'
-import { Form, Input, Button } from 'antd'
-import { LockOutlined, PhoneOutlined, HistoryOutlined } from '@ant-design/icons'
+import { Form, Input, Button, Alert } from 'antd'
+import { LockOutlined, HistoryOutlined, SafetyOutlined } from '@ant-design/icons'
 import { MdSchool } from 'react-icons/md'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { changePassword } from '@/services/AuthApiService'
 import useAuthStore from '@/store/useAuthStore'
 import { notifyError, notifySuccess } from '@/utilities/notification'
+import { ERROR_CODES, parseApiError, toFormFields } from '@/utilities/apiError'
+
+// Mirrors the server-side rules for `new_password`.
+const PASSWORD_POLICY = [
+  { test: (v) => v.length >= 8, message: 'Password must be at least 8 characters long.' },
+  { test: (v) => /[A-Za-z]/.test(v), message: 'Password must contain at least one letter.' },
+  { test: (v) => /\d/.test(v), message: 'Password must contain at least one digit.' },
+]
 
 const ResetPassword = () => {
   const [form] = Form.useForm()
@@ -22,57 +30,64 @@ const ResetPassword = () => {
     return 'forgot'
   }, [location.state, user])
 
-  // If a fully-authenticated user lands here without `must_change_password`, bounce
-  if (user && !user.must_change_password && mode !== 'forgot') {
-    return <Navigate to="/admin/dashboard" replace />
-  }
+  const isChange = mode === 'change'
 
   // ── Change-password mutation (after-login, must_change_password=true)
-  const changeMutation = useMutation({
+  const { mutate: doChangePassword, isPending } = useMutation({
     mutationFn: ({ old_password, new_password }) =>
       changePassword({ old_password, new_password }),
     onSuccess: (data) => {
+      // Tokens were already replaced by the service; refresh the user snapshot
+      // so `must_change_password: false` unblocks the protected routes.
       if (data?.user) setUser(data.user)
       notifySuccess('Password Updated', 'Your password has been changed successfully.')
       navigate('/admin/dashboard', { replace: true })
     },
     onError: (error) => {
-      const message = error?.response?.data?.detail || 'Failed to update password.'
-      notifyError('Update Failed', message)
+      const { code, message, fieldErrors } = parseApiError(error, 'Failed to update password.')
+
+      // 400 { new_password: [...] } lands on its own field; wrong_old_password
+      // arrives as an application error, so map it onto the old-password input.
+      const fields = toFormFields(fieldErrors)
+      if (code === ERROR_CODES.WRONG_OLD_PASSWORD) {
+        fields.push({ name: 'old_password', errors: [message] })
+      }
+
+      if (fields.length) form.setFields(fields)
+      else notifyError('Update Failed', message)
     },
   })
 
-  // ── Forgot-password mutation (stub — API to be wired later)
-  const forgotMutation = useMutation({
-    mutationFn: async () => {
-      // TODO: integrate forgot-password API
-      await new Promise((r) => setTimeout(r, 600))
-      return true
-    },
-    onSuccess: () => {
-      notifySuccess('Password Reset', 'Please sign in with your new password.')
-      navigate('/admin/login', { replace: true })
-    },
-    onError: () => {
-      notifyError('Reset Failed', 'Unable to reset password. Please try again.')
+  // If a fully-authenticated user lands here without `must_change_password`, bounce.
+  // Kept below the hooks so hook order stays stable across renders.
+  if (user && !user.must_change_password && isChange) {
+    return <Navigate to="/admin/dashboard" replace />
+  }
+
+  const validateNewPassword = ({ getFieldValue }) => ({
+    validator(_, value) {
+      if (!value) return Promise.resolve() // the `required` rule covers empty
+      const failed = PASSWORD_POLICY.find((rule) => !rule.test(value))
+      if (failed) return Promise.reject(new Error(failed.message))
+      if (isChange && value === getFieldValue('old_password')) {
+        return Promise.reject(new Error('New password must be different from the old one.'))
+      }
+      return Promise.resolve()
     },
   })
 
-  const isChange = mode === 'change'
-  const isPending = isChange ? changeMutation.isPending : forgotMutation.isPending
+  const validateConfirmPassword = ({ getFieldValue }) => ({
+    validator(_, value) {
+      if (!value || value === getFieldValue('new_password')) return Promise.resolve()
+      return Promise.reject(new Error('Passwords do not match.'))
+    },
+  })
 
   const handleSubmit = (values) => {
-    if (isChange) {
-      changeMutation.mutate({
-        old_password: values.old_password,
-        new_password: values.new_password,
-      })
-    } else {
-      forgotMutation.mutate({
-        phone: values.phone,
-        new_password: values.new_password,
-      })
-    }
+    doChangePassword({
+      old_password: values.old_password,
+      new_password: values.new_password,
+    })
   }
 
   return (
@@ -105,7 +120,7 @@ const ResetPassword = () => {
           <p className="text-white/70 text-[15px] leading-relaxed max-w-md">
             {isChange
               ? 'For your security, please update the temporary password assigned to your account before proceeding to the dashboard.'
-              : 'Enter your registered phone number and a new password to regain access to your YantraTech administrative account.'}
+              : 'Password recovery for YantraTech administrators is handled by your platform administrator.'}
           </p>
         </div>
 
@@ -121,97 +136,109 @@ const ResetPassword = () => {
         <div />
 
         <div className="w-full max-w-md mx-auto">
-          <h2 className="text-[28px] font-bold text-[#1c1b1f] mb-1.5">Reset Password</h2>
+          <h2 className="text-[28px] font-bold text-[#1c1b1f] mb-1.5">
+            {isChange ? 'Change Password' : 'Forgot Password'}
+          </h2>
           <p className="text-[#6b6b75] text-sm mb-8">
-            Please enter your details to update your account security.
+            {isChange
+              ? 'Please enter your details to update your account security.'
+              : 'Self-service reset is not available for this portal.'}
           </p>
 
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleSubmit}
-            requiredMark={false}
-          >
-            {isChange ? (
-              <>
-                {/* Old Password */}
-                <Form.Item
-                  label={<span className="text-xs font-semibold text-[#1c1b1f]">Old Password</span>}
-                  name="old_password"
-                  rules={[{ required: true, message: 'Old password is required' }]}
-                >
-                  <Input.Password
-                    prefix={<LockOutlined className="text-[#6b6b75]" />}
-                    placeholder="Enter old password"
-                    size="large"
-                    style={{ borderRadius: 10, backgroundColor: '#f7f7fb' }}
-                  />
-                </Form.Item>
-              </>
-            ) : (
-              <>
-                {/* Phone */}
-                <Form.Item
-                  label={<span className="text-xs font-semibold text-[#1c1b1f]">Phone Number</span>}
-                  name="phone"
-                  rules={[
-                    { required: true, message: 'Phone number is required' },
-                    {
-                      pattern: /^\+[1-9]\d{7,14}$/,
-                      message: 'Enter E.164 format, e.g. +919999900001',
-                    },
-                  ]}
-                >
-                  <Input
-                    prefix={<PhoneOutlined className="text-[#6b6b75]" />}
-                    placeholder="Enter your phone number"
-                    size="large"
-                    style={{ borderRadius: 10, backgroundColor: '#f7f7fb' }}
-                  />
-                </Form.Item>
-              </>
-            )}
-
-            {/* New Password (shared) */}
-            <Form.Item
-              label={<span className="text-xs font-semibold text-[#1c1b1f]">New Password</span>}
-              name="new_password"
-              rules={[
-                { required: true, message: 'New password is required' },
-                { min: 8, message: 'Password must be at least 8 characters' },
-              ]}
+          {isChange ? (
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSubmit}
+              requiredMark={false}
             >
-              <Input.Password
-                prefix={<HistoryOutlined className="text-[#6b6b75]" />}
-                placeholder="Enter new password"
-                size="large"
-                style={{ borderRadius: 10, backgroundColor: '#f7f7fb' }}
-              />
-            </Form.Item>
-
-            {/* Submit */}
-            <Form.Item className="mt-6 mb-0">
-              <Button
-                type="primary"
-                htmlType="submit"
-                size="large"
-                loading={isPending}
-                block
-                style={{
-                  background: isPending
-                    ? '#ba558f'
-                    : 'linear-gradient(90deg, #ba558f 0%, #8f3f6d 100%)',
-                  border: 'none',
-                  borderRadius: 10,
-                  height: 48,
-                  fontWeight: 600,
-                  fontSize: 14,
-                }}
+              {/* Old Password */}
+              <Form.Item
+                label={<span className="text-xs font-semibold text-[#1c1b1f]">Current Password</span>}
+                name="old_password"
+                rules={[{ required: true, message: 'Current password is required' }]}
               >
-                {isPending ? 'Updating…' : 'Reset Password →'}
-              </Button>
-            </Form.Item>
-          </Form>
+                <Input.Password
+                  prefix={<LockOutlined className="text-[#6b6b75]" />}
+                  placeholder="Enter current password"
+                  size="large"
+                  style={{ borderRadius: 10, backgroundColor: '#f7f7fb' }}
+                />
+              </Form.Item>
+
+              {/* New Password */}
+              <Form.Item
+                label={<span className="text-xs font-semibold text-[#1c1b1f]">New Password</span>}
+                name="new_password"
+                dependencies={['old_password']}
+                rules={[
+                  { required: true, message: 'New password is required' },
+                  validateNewPassword,
+                ]}
+                extra={
+                  <span className="text-[11px] text-[#6b6b75]">
+                    At least 8 characters, with one letter and one digit.
+                  </span>
+                }
+              >
+                <Input.Password
+                  prefix={<HistoryOutlined className="text-[#6b6b75]" />}
+                  placeholder="Enter new password"
+                  size="large"
+                  style={{ borderRadius: 10, backgroundColor: '#f7f7fb' }}
+                />
+              </Form.Item>
+
+              {/* Confirm New Password */}
+              <Form.Item
+                label={<span className="text-xs font-semibold text-[#1c1b1f]">Confirm New Password</span>}
+                name="confirm_password"
+                dependencies={['new_password']}
+                rules={[
+                  { required: true, message: 'Please confirm your new password' },
+                  validateConfirmPassword,
+                ]}
+              >
+                <Input.Password
+                  prefix={<SafetyOutlined className="text-[#6b6b75]" />}
+                  placeholder="Re-enter new password"
+                  size="large"
+                  style={{ borderRadius: 10, backgroundColor: '#f7f7fb' }}
+                />
+              </Form.Item>
+
+              {/* Submit */}
+              <Form.Item className="mt-6 mb-0">
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  size="large"
+                  loading={isPending}
+                  block
+                  style={{
+                    background: isPending
+                      ? '#ba558f'
+                      : 'linear-gradient(90deg, #ba558f 0%, #8f3f6d 100%)',
+                    border: 'none',
+                    borderRadius: 10,
+                    height: 48,
+                    fontWeight: 600,
+                    fontSize: 14,
+                  }}
+                >
+                  {isPending ? 'Updating…' : 'Update Password →'}
+                </Button>
+              </Form.Item>
+            </Form>
+          ) : (
+            <Alert
+              type="info"
+              showIcon
+              title="Contact your administrator"
+              description="The portal does not expose a self-service password reset. Ask your platform administrator to issue a temporary password — you will be prompted to change it at your next sign-in."
+              style={{ borderRadius: 10 }}
+            />
+          )}
 
           {/* Back to login */}
           {!isChange && (
