@@ -7,9 +7,15 @@ const REFRESH_URL = '/api/auth/refresh/'
 let isRefreshing = false
 let failedQueue = []
 
+const sessionExpiredError = (cause) => {
+  const err = new Error('session_expired')
+  err.cause = cause
+  return err
+}
+
 const processQueue = (error, token = null) => {
   failedQueue.forEach(({ resolve, reject }) => {
-    if (error) reject(error)
+    if (error) reject(sessionExpiredError(error))
     else resolve(token)
   })
   failedQueue = []
@@ -165,9 +171,7 @@ const apiService = async ({
     } catch (refreshErr) {
       processQueue(refreshErr, null)
       await triggerSessionExpired()
-      const sessionErr = new Error('session_expired')
-      sessionErr.cause = refreshErr
-      throw sessionErr
+      throw sessionExpiredError(refreshErr)
     } finally {
       isRefreshing = false
     }

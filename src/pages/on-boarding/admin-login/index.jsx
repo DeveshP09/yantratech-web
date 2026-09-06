@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import { login } from '@/services/AuthApiService'
 import useAuthStore from '@/store/useAuthStore'
 import { notifyError } from '@/utilities/notification'
+import { ERROR_CODES, parseApiError, toFormFields } from '@/utilities/apiError'
 
 const AdminLogin = () => {
   const [form] = Form.useForm()
@@ -18,6 +19,7 @@ const AdminLogin = () => {
   const setUser = useAuthStore((s) => s.setUser)
 
   const { mutate: doLogin, isPending } = useMutation({
+    // The service normalises `phone` to E.164 (+91…) before it hits the API.
     mutationFn: ({ phone, password }) =>
       login({ phone, role: 'admin', password }),
     onSuccess: (data) => {
@@ -29,8 +31,18 @@ const AdminLogin = () => {
       }
     },
     onError: (error) => {
-      const message = error?.response?.data?.detail || 'Invalid credentials. Please try again.'
-      notifyError('Login Failed', message)
+      const { code, message, fieldErrors } = parseApiError(
+        error,
+        'Invalid credentials. Please try again.'
+      )
+
+      // 400 validation shape — surface inline under the offending field.
+      const formFields = toFormFields(fieldErrors)
+      if (formFields.length) form.setFields(formFields)
+
+      const title =
+        code === ERROR_CODES.RATE_LIMITED ? 'Too Many Attempts' : 'Login Failed'
+      notifyError(title, message)
     },
   })
 
@@ -104,9 +116,15 @@ const AdminLogin = () => {
               ]}
             >
               <Input
-                prefix={<PhoneOutlined className="text-[#6b6b75]" />}
+                prefix={
+                  <span className="flex items-center gap-1.5 text-[#6b6b75]">
+                    <PhoneOutlined />
+                    <span className="text-[13px]">+91</span>
+                  </span>
+                }
                 placeholder="9999900001"
                 maxLength={10}
+                inputMode="numeric"
                 size="large"
                 style={{ borderRadius: 10, backgroundColor: '#f7f7fb' }}
               />

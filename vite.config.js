@@ -8,6 +8,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  // environmentConfig.js reads YT_-prefixed vars; Vite only exposes VITE_ by default.
+  envPrefix: ['VITE_', 'YT_'],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
@@ -16,7 +18,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://yantratech-backend.onrender.com',
+        target: 'https://api.yantravidyainfotech.com',
         changeOrigin: true,
         secure: true,
       },

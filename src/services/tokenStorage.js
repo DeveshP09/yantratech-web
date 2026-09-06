@@ -11,6 +11,12 @@ const getStored = () => {
   }
 }
 
+// Synchronous so the auth store can reconcile itself during rehydration.
+export const hasStoredTokens = () => {
+  const stored = getStored()
+  return Boolean(stored?.access && stored?.refresh)
+}
+
 export const getAccessToken = async () => getStored()?.access ?? null
 
 export const getRefreshToken = async () => getStored()?.refresh ?? null
